@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, Response
 from datetime import datetime
 
 app = Flask(__name__)
@@ -30,6 +30,43 @@ def index():
 
     # Render the template for GET requests
     return render_template('index.html', study_plan=None, efficiency_score=None)
+
+@app.route('/download', methods=['POST'])
+def download():
+    try:
+        # Extract form data
+        test_date = request.form['testDate']
+        subjects = [s.strip() for s in request.form['subjects'].split(',') if s.strip()]
+        daily_hours = int(request.form['dailyHours'])
+        difficulty = [request.form[f'difficulty_{s.lower()}'] for s in subjects]
+        priority = [int(request.form[f'priority_{s.lower()}']) for s in subjects]
+        
+        # Calculate days until the test
+        days_until_test = max(1, (datetime.strptime(test_date, '%Y-%m-%d') - datetime.now()).days)
+
+        # Generate study plan
+        study_plan = generate_study_plan(subjects, daily_hours, difficulty, priority, days_until_test)
+
+        # Prepare the study plan as a formatted text file
+        output = f"Study Plan (Test Date: {test_date})\n"
+        output += "=" * 40 + "\n"
+        for subject, details in study_plan.items():
+            output += f"Subject: {subject}\n"
+            output += f"  Hours per Day: {details['hours_per_day']}\n"
+            output += f"  Total Hours: {details['total_hours']}\n"
+            output += f"  Sessions per Day: {details['sessions_per_day']}\n"
+            output += f"  Difficulty: {details['difficulty']}\n"
+            output += f"  Priority: {details['priority']}\n"
+            output += "-" * 40 + "\n"
+
+        # Create a response to download the file
+        return Response(
+            output,
+            mimetype="text/plain",
+            headers={"Content-Disposition": "attachment;filename=study_plan.txt"}
+        )
+    except Exception as e:
+        return f"An error occurred: {str(e)}"
 
 def generate_study_plan(subjects, daily_hours, difficulty, priority, days):
     # Initialize the study plan dictionary
