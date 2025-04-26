@@ -1,0 +1,89 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartStudy Scheduler</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1, h2, h3, h4 { text-align: center; color: #2c3e50; }
+        form, .study-plan { margin-top: 20px; }
+        label { font-weight: bold; margin-top: 10px; }
+        input, select, button { padding: 8px; margin: 10px 0; border-radius: 4px; border: 1px solid #ddd; }
+        button { background: #3498db; color: white; cursor: pointer; }
+        button:hover { background: #2980b9; }
+        .subject-list, .study-plan { margin-top: 20px; }
+        .subject-plan, .efficiency-score { padding: 10px; border-radius: 4px; margin-bottom: 15px; }
+        .subject-plan { background: #fff; border-left: 4px solid #3498db; }
+        .efficiency-score { background: #2ecc71; color: white; font-size: 24px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SmartStudy Scheduler</h1>
+        {% if not study_plan %}
+        <form method="POST">
+            <label>Test Date:</label>
+            <input type="date" name="testDate" required>
+            <label>Subjects (comma separated):</label>
+            <input type="text" name="subjects" placeholder="Math, Science, History" required>
+            <label>Hours Available per Day:</label>
+            <input type="number" name="dailyHours" min="1" max="12" placeholder="4" required>
+            <div id="subjectDetails" class="subject-list"></div>
+            <button type="submit">Generate Study Plan</button>
+        </form>
+        <script>
+            document.querySelector('input[name="subjects"]').addEventListener('blur', function() {
+                const subjects = this.value.split(',').map(s => s.trim()).filter(s => s);
+                const subjectDetails = document.getElementById('subjectDetails');
+                subjectDetails.innerHTML = '';
+                subjects.forEach(subject => {
+                    subjectDetails.innerHTML += `
+                        <div class="subject-input">
+                            <h4>${subject}</h4>
+                            <label>Difficulty:</label>
+                            <select name="difficulty_${subject.toLowerCase()}" required>
+                                <option value="easy">Easy</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="hard">Hard</option>
+                            </select>
+                            <label>Priority (1-10):</label>
+                            <input type="number" name="priority_${subject.toLowerCase()}" min="1" max="10" value="5" required>
+                        </div>`;
+                });
+            });
+        </script>
+        {% else %}
+        <div class="study-plan">
+            <h2>Your Study Plan</h2>
+            <p>Days Until Test: {{ days_until_test }}</p>
+            {% for subject, details in study_plan.items() %}
+            <div class="subject-plan">
+                <h3>{{ subject }}</h3>
+                <p><strong>Total Study Time:</strong> {{ details.total_hours }} hours</p>
+                <p><strong>Daily Study Time:</strong> {{ details.hours_per_day }} hours</p>
+                <p><strong>Daily Sessions:</strong> {{ details.sessions_per_day }} (30-minute sessions)</p>
+                <p><strong>Difficulty:</strong> {{ details.difficulty }}</p>
+                <p><strong>Priority:</strong> {{ details.priority }}/10</p>
+            </div>
+            {% endfor %}
+            <div class="efficiency-score">
+                <h3>Efficiency Score: {{ efficiency_score }}%</h3>
+                <p>Higher score means better allocation of study time</p>
+            </div>
+            <form method="POST" action="/download">
+                <input type="hidden" name="testDate" value="{{ request.form['testDate'] }}">
+                <input type="hidden" name="subjects" value="{{ request.form['subjects'] }}">
+                <input type="hidden" name="dailyHours" value="{{ request.form['dailyHours'] }}">
+                {% for subject in study_plan.keys() %}
+                <input type="hidden" name="difficulty_{{ subject.lower() }}" value="{{ study_plan[subject]['difficulty'] }}">
+                <input type="hidden" name="priority_{{ subject.lower() }}" value="{{ study_plan[subject]['priority'] }}">
+                {% endfor %}
+                <button type="submit">Download Study Plan</button>
+            </form>
+            <a href="/" style="display: block; text-align: center; margin-top: 20px;">Create Another Plan</a>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
